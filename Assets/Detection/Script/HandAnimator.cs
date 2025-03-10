@@ -249,19 +249,24 @@ public sealed class HandAnimator : MonoBehaviour
         if (comparisonArgument)
         {
             _score++;
-            _feedbackText.text = "Correct!";
-            UpdateScore();
+            UpdateFeedback("Correct!");
+            UpdateScore(_score.ToString());
             StartCoroutine(_showComparisonBasedEquations ? GenerateComparisonEquation() : GenerateArithmeticEquation());
         }
         else
         {
-            _feedbackText.text = "Incorrect!";
+            UpdateFeedback("Incorrect!");
         }
     }
     
-    private void UpdateScore()
+    private void UpdateScore(string score)
     {
-        _scoreText.text = $"Score: {_score}";
+        _scoreText.text = $"Score: {score}";
+    }
+
+    private void UpdateFeedback(string feedback)
+    {
+        _feedbackText.text = feedback;
     }
 
     #endregion
