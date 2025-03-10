@@ -1,7 +1,9 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using Klak.TestTools;
 using MediaPipe.HandPose;
+using TMPro;
 
 public sealed class HandAnimator : MonoBehaviour
 {
@@ -19,12 +21,20 @@ public sealed class HandAnimator : MonoBehaviour
     [SerializeField] Material _boneMaterial = null;
     [Space]
     [SerializeField] RawImage _monitorUI = null;
+    [Space] 
+    [SerializeField] private TextMeshProUGUI _equationText;
+    [SerializeField] private TextMeshProUGUI _feedbackText;
+    [SerializeField] private TextMeshProUGUI _scoreText;
+    [Space] 
+    [SerializeField] private bool _showComparisonBasedEquations = true;
 
     #endregion
 
     #region Private members
 
-    HandPipeline _pipeline;
+    private int _score = 0;
+    private char _selectedOperator;
+    private HandPipeline _pipeline;
 
     static readonly (int, int)[] BonePairs =
     {
@@ -94,7 +104,11 @@ public sealed class HandAnimator : MonoBehaviour
 
     #region MonoBehaviour implementation
 
-    private void Start() => _pipeline = new HandPipeline(_resources);
+    private void Start()
+    {
+        _pipeline = new HandPipeline(_resources);
+        StartCoroutine(_showComparisonBasedEquations ? GenerateComparisonEquation() : GenerateArithmeticEquation());
+    }
 
     private void OnDestroy() => _pipeline.Dispose();
 
@@ -129,18 +143,125 @@ public sealed class HandAnimator : MonoBehaviour
         Debug.Log("Extended Fingers: " + extendedFingers);
 
         // Use the number of extended fingers to determine the user's input
-        if (extendedFingers == 1)
+        if (_showComparisonBasedEquations)
         {
-            Debug.Log("User selected addition");
-        }
-        else if (extendedFingers == 2)
+            CheckComparisonOperatorAnswers(extendedFingers, _equationText.text);
+        } 
+        else
         {
-            Debug.Log("User selected subtraction");
+            CheckArithmeticOperatorAnswers(extendedFingers, _equationText.text);
         }
-        else if (extendedFingers == 3)
+    }
+
+    #endregion
+
+    #region Equations
+    
+    private IEnumerator GenerateComparisonEquation()
+    {
+        yield return new WaitForSeconds(0.25f);
+        
+        var a = Random.Range(1, 10);
+        var b = Random.Range(1, 10);
+        _equationText.text = $"{a} ? {b}";
+    }
+
+    private IEnumerator GenerateArithmeticEquation()
+    {
+        yield return new WaitForSeconds(0.25f);
+        
+        var a = Random.Range(1, 10);
+        var b = Random.Range(1, 10);
+        var operators = new[] { '+', '-', '*', '/' };
+        _selectedOperator = operators[Random.Range(0, operators.Length)];
+        float result = 0;
+        switch (_selectedOperator)
         {
-            Debug.Log("User selected equals");
+            case '+':
+                result = a + b;
+                break;
+            case '-':
+                result = a - b;
+                break;
+            case '*':
+                result = a * b;
+                break;
+            case '/':
+                // Ensure b is not zero to avoid division by zero
+                if (b != 0)
+                {
+                    result = (float)a / b;
+                }
+                else
+                {
+                    result = 0;
+                }
+                break;
         }
+        _equationText.text = $"{a} ? {b} = {result}";
+    }
+
+    private void CheckComparisonOperatorAnswers(int fingers, string equation)
+    {
+        var a = int.Parse(equation.Split(" ")[0]);
+        var b = int.Parse(equation.Split(" ")[2]);
+
+        if (fingers == 1)
+        {
+            DisplayIfCorrect(a < b);
+        }
+        else if (fingers == 2)
+        {
+            DisplayIfCorrect(a > b);
+        } 
+        else if (fingers == 3)
+        {
+            DisplayIfCorrect(a == b);
+        }
+    }
+
+    private void CheckArithmeticOperatorAnswers(int fingers, string equation)
+    {
+        var a = int.Parse(equation.Split(" ")[0]);
+        var b = int.Parse(equation.Split(" ")[2]);
+        var result = int.Parse(equation.Split(" ")[4]);
+
+        if (fingers == 1)
+        {
+            DisplayIfCorrect(a + b == result);
+        }
+        else if (fingers == 2)
+        {
+            DisplayIfCorrect(a - b == result);
+        }
+        else if (fingers == 3)
+        {
+            DisplayIfCorrect(a * b == result);
+        } 
+        else if (fingers == 4)
+        {
+            DisplayIfCorrect(a / b == result);
+        }
+    }
+
+    private void DisplayIfCorrect(bool comparisonArgument)
+    {
+        if (comparisonArgument)
+        {
+            _score++;
+            _feedbackText.text = "Correct!";
+            UpdateScore();
+            StartCoroutine(_showComparisonBasedEquations ? GenerateComparisonEquation() : GenerateArithmeticEquation());
+        }
+        else
+        {
+            _feedbackText.text = "Incorrect!";
+        }
+    }
+    
+    private void UpdateScore()
+    {
+        _scoreText.text = $"Score: {_score}";
     }
 
     #endregion
