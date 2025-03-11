@@ -33,7 +33,6 @@ public sealed class HandAnimator : MonoBehaviour
     #region Private members
 
     private int _score = 0;
-    private char _selectedOperator;
     private HandPipeline _pipeline;
 
     static readonly (int, int)[] BonePairs =
@@ -173,9 +172,9 @@ public sealed class HandAnimator : MonoBehaviour
         var a = Random.Range(1, 10);
         var b = Random.Range(1, 10);
         var operators = new[] { '+', '-', '*', '/' };
-        _selectedOperator = operators[Random.Range(0, operators.Length)];
+        var selectedOperator = operators[Random.Range(0, operators.Length)];
         float result = 0;
-        switch (_selectedOperator)
+        switch (selectedOperator)
         {
             case '+':
                 result = a + b;
