@@ -27,12 +27,16 @@ public sealed class HandAnimator : MonoBehaviour
     [SerializeField] private TextMeshProUGUI _scoreText;
     [Space] 
     [SerializeField] private bool _showComparisonBasedEquations = true;
+    [SerializeField] private float _waitTime = 5.0f;
+    [SerializeField] private GameObject _comparisonControlInfo;
+    [SerializeField] private GameObject _arithmeticControlInfo;
 
     #endregion
 
     #region Private members
 
     private int _score = 0;
+    private bool _isWaitingForNextEquation = false;
     private HandPipeline _pipeline;
 
     static readonly (int, int)[] BonePairs =
@@ -60,7 +64,7 @@ public sealed class HandAnimator : MonoBehaviour
         return Matrix4x4.TRS(center, rotation, scale);
     }
 
-    int CountExtendedFingers()
+    private int CountExtendedFingers()
     {
         var extendedFingers = 0;
 
@@ -113,13 +117,14 @@ public sealed class HandAnimator : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (_isWaitingForNextEquation) return;
         // Feed the input image to the Hand pose pipeline.
         _pipeline.UseAsyncReadback = _useAsyncReadback;
         _pipeline.ProcessImage(_source.Texture);
 
         var layer = gameObject.layer;
 
-        // Joint ballsx
+        // Joint balls x
         for (var i = 0; i < HandPipeline.KeyPointCount; i++)
         {
             var xform = CalculateJointXform(_pipeline.GetKeyPoint(i));
@@ -142,13 +147,16 @@ public sealed class HandAnimator : MonoBehaviour
         Debug.Log("Extended Fingers: " + extendedFingers);
 
         // Use the number of extended fingers to determine the user's input
-        if (_showComparisonBasedEquations)
+        if (_equationText.text != "")
         {
-            CheckComparisonOperatorAnswers(extendedFingers, _equationText.text);
-        } 
-        else
-        {
-            CheckArithmeticOperatorAnswers(extendedFingers, _equationText.text);
+            if (_showComparisonBasedEquations)
+            {
+                CheckComparisonOperatorAnswers(extendedFingers, _equationText.text);
+            } 
+            else
+            {
+                CheckArithmeticOperatorAnswers(extendedFingers, _equationText.text);
+            }
         }
     }
 
@@ -158,7 +166,9 @@ public sealed class HandAnimator : MonoBehaviour
     
     private IEnumerator GenerateComparisonEquation()
     {
-        yield return new WaitForSeconds(0.25f);
+        _comparisonControlInfo.SetActive(_showComparisonBasedEquations);
+        _arithmeticControlInfo.SetActive(!_showComparisonBasedEquations);
+        yield return new WaitForSeconds(1.0f);
         
         var a = Random.Range(1, 10);
         var b = Random.Range(1, 10);
@@ -167,7 +177,9 @@ public sealed class HandAnimator : MonoBehaviour
 
     private IEnumerator GenerateArithmeticEquation()
     {
-        yield return new WaitForSeconds(0.25f);
+        _comparisonControlInfo.SetActive(_showComparisonBasedEquations);
+        _arithmeticControlInfo.SetActive(!_showComparisonBasedEquations);
+        yield return new WaitForSeconds(1.0f);
         
         var a = Random.Range(1, 10);
         var b = Random.Range(1, 10);
@@ -250,12 +262,20 @@ public sealed class HandAnimator : MonoBehaviour
             _score++;
             UpdateFeedback("Correct!");
             UpdateScore(_score.ToString());
-            StartCoroutine(_showComparisonBasedEquations ? GenerateComparisonEquation() : GenerateArithmeticEquation());
+            StartCoroutine(WaitAndGenerateNextEquation());
         }
         else
         {
             UpdateFeedback("Incorrect!");
         }
+    }
+
+    private IEnumerator WaitAndGenerateNextEquation()
+    {
+        _isWaitingForNextEquation = true;
+        yield return new WaitForSeconds(_waitTime);
+        _isWaitingForNextEquation = false;
+        StartCoroutine(_showComparisonBasedEquations ? GenerateComparisonEquation() : GenerateArithmeticEquation());
     }
     
     private void UpdateScore(string score)
